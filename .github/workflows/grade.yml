@@ -1,0 +1,47 @@
+name: Grade Submission
+
+on:
+  push:
+    tags:
+      - 'submit/*'    # e.g. submit/ex01  submit/all
+
+jobs:
+  grade:
+    name: Grade · ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Extract which exercise was submitted from the tag name
+      - name: Resolve exercise target
+        id: exercise
+        run: |
+          TAG="${GITHUB_REF#refs/tags/submit/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Grading: $TAG"
+
+      # Build the candidate's exercise
+      - name: Configure CMake
+        run: cmake -S . -B build
+
+      - name: Build exercise
+        run: |
+          TAG="${{ steps.exercise.outputs.tag }}"
+          if [ "$TAG" = "all" ]; then
+            cmake --build build
+          else
+            cmake --build build --target $TAG
+          fi
+
+      - name: Report compile result
+        if: success()
+        run: echo "Compile OK for ${{ steps.exercise.outputs.tag }}"
+
+      # ---------------------------------------------------------------------------
+      # TODO: once the Go simulator bridge is ready, add:
+      #   1. Download the bridge binary from a release artifact
+      #   2. Run: ./bridge --headless --test tests/<exercise>.json \
+      #              --binary ./build/<exercise> --output results.json
+      #   3. Parse results.json and post to GitHub Checks API (pass / fail)
+      # ---------------------------------------------------------------------------
